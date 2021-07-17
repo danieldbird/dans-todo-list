@@ -2,6 +2,7 @@ import "./App.css";
 import { useState, useEffect } from "react";
 import uniqid from "uniqid";
 import { ReactSortable } from "react-sortablejs";
+import ForkMeOnGithub from "fork-me-on-github";
 
 function App() {
   // set initial states
@@ -174,6 +175,11 @@ function App() {
           Clear Storage
         </button>
       </div>
+      <ForkMeOnGithub
+        repo="https://github.com/danieldbird/dans-todo-list.git"
+        text="View source on GitHub"
+        colorBackground="#705194"
+      />
     </div>
   );
 }
