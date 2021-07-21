@@ -11,16 +11,16 @@ body {
 }
 .container {
   text-align: center;
-  min-height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  grid-template-columns: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .app-title {
   color: #fff;
 }
 .new-todo-input {
-  width: 300px;
+  width: 400px;
   font-size: 1.25rem;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
@@ -41,8 +41,9 @@ body {
   cursor: grab;
 }
 
-.todo-list-item:hover .delete-btn,
-.todo-list-item:hover .completed-btn {
+.todo-list-item:hover .complete-btn,
+.todo-list-item:hover .restore-btn,
+.todo-list-item:hover .delete-btn {
   opacity: 1;
 }
 
@@ -57,7 +58,6 @@ body {
 
 .delete-btn {
   position: relative;
-  /* background: #3a3f49; */
   color: rgb(255, 96, 96);
   font-weight: bold;
   margin: 0;
@@ -66,11 +66,25 @@ body {
   opacity: 0.1;
 }
 
-.completed-btn {
+.show-completed {
+  color: rgb(111, 218, 146);
+}
+
+.complete-btn {
   position: relative;
   font-size: 1.1rem;
-  /* background: #3a3f49; */
   color: rgb(111, 218, 146);
+  font-weight: bold;
+  margin: 0;
+  padding: 0 1.5rem;
+  border-radius: 2px;
+  opacity: 0.1;
+}
+
+.restore-btn {
+  position: relative;
+  font-size: 1.1rem;
+  color: rgb(218, 211, 111);
   font-weight: bold;
   margin: 0;
   padding: 0 1.5rem;
@@ -84,12 +98,15 @@ body {
 
 .delete-btn:hover {
   cursor: pointer;
-  /* background: #444953; */
   color: rgb(255, 41, 41);
 }
-.completed-btn:hover {
+
+.restore-btn:hover {
   cursor: pointer;
-  /* background: #444953; */
+  color: rgb(248, 233, 23);
+}
+.complete-btn:hover {
+  cursor: pointer;
   color: rgb(53, 185, 97);
 }
 .stats {
@@ -101,14 +118,15 @@ body {
   padding: 0.5rem;
   border-radius: 3px;
 }
+.show-completed-btn {
+  border: none;
+  border-radius: 3px;
+}
 .bottom-panel {
-  position: absolute;
+  min-height: 100%;
   padding: 1rem;
-  width: 100%;
-  bottom: 0;
   display: flex;
   justify-content: space-between;
-  /* background: #ccc 0.1; */
 }
 .ghost {
   opacity: 0.25;

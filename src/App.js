@@ -3,60 +3,82 @@ import { useState, useEffect } from "react";
 import uniqid from "uniqid";
 import { ReactSortable } from "react-sortablejs";
 import ForkMeOnGithub from "fork-me-on-github";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faTrash, faArrowUp } from "@fortawesome/free-solid-svg-icons";
 
 function App() {
   // set initial states
   const [textInput, setTextInput] = useState("");
-  const [todos, setTodos] = useState([]);
+  const [activeTodos, setActiveTodos] = useState([]);
+  const [completedTodos, setCompletedTodos] = useState([]);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [completedTodos, setCompletedTodos] = useState([
-    { id: 122, task: "completed todo" },
-  ]);
+
+  const activeList = !showCompleted ? activeTodos : completedTodos;
+  const activeState = !showCompleted ? setActiveTodos : setCompletedTodos;
+  const activeStorage = !showCompleted ? "activeTodos" : "completedTodos";
 
   // check if there are todos in localStorage
   useEffect(() => {
-    if (localStorage.getItem("todos") !== null) {
-      setTodos(JSON.parse(localStorage.getItem("todos")));
+    if (localStorage.getItem("activeTodos") !== null) {
+      setActiveTodos(JSON.parse(localStorage.getItem("activeTodos")));
+    }
+    if (localStorage.getItem("completedTodos") !== null) {
+      setCompletedTodos(JSON.parse(localStorage.getItem("completedTodos")));
     }
   }, []);
 
-  //detect enter key
-  const handleNewTodoChange = (e) => {
+  // handle the text input changes
+  const handleNewTodoInputChange = (e) => {
     setTextInput(e.target.value);
   };
 
   const handleNewTodoEnter = (e) => {
     const id = uniqid();
     if (e.key === "Enter") {
-      setTodos([...todos, { id, task: textInput }]);
+      activeState([...activeList, { id, task: textInput }]);
       localStorage.setItem(
-        "todos",
-        JSON.stringify([...todos, { id, task: textInput }])
+        activeStorage,
+        JSON.stringify([...activeList, { id, task: textInput }])
       );
       setTextInput("");
     }
   };
 
   const handleDeleteTodo = (id) => {
-    const newArray = todos.filter((todo) => todo.id !== id);
-    setTodos(newArray);
-    localStorage.setItem("todos", JSON.stringify(newArray));
+    const newArray = activeList.filter((todo) => todo.id !== id);
+    activeState(newArray);
+    localStorage.setItem(activeStorage, JSON.stringify(newArray));
   };
 
   const handleEditTodo = (e, todo) => {
-    const newArray = todos.map((x) =>
+    const newArray = activeList.map((x) =>
       x.id === todo.id ? { ...x, task: e.target.value } : { ...x }
     );
-    setTodos(newArray);
-    localStorage.setItem("todos", JSON.stringify(newArray));
+    activeState(newArray);
+    localStorage.setItem(activeStorage, JSON.stringify(newArray));
   };
 
-  const handleCompletedTodo = (e, todo) => {
-    // const newArray = todos.map((x) =>
-    //   x.id === todo.id ? { ...x, task: e.target.value } : { ...x }
-    // );
-    // setTodos(newArray);
-    // localStorage.setItem("todos", JSON.stringify(newArray));
+  const handleToggleTodo = (todo) => {
+    const originList = !showCompleted ? activeTodos : completedTodos;
+    const targetList = !showCompleted ? completedTodos : activeTodos;
+    const originState = !showCompleted ? setActiveTodos : setCompletedTodos;
+    const targetState = !showCompleted ? setCompletedTodos : setActiveTodos;
+    const originStorage = !showCompleted ? "activeTodos" : "completedTodos";
+    const targetStorage = !showCompleted ? "completedTodos" : "activeTodos";
+    const newOriginArray = originList.filter((x) => x.id !== todo.id);
+    const newTargetArray = [
+      ...targetList,
+      {
+        id: todo.id,
+        task: todo.task,
+      },
+    ];
+
+    originState(newOriginArray);
+    localStorage.setItem(originStorage, JSON.stringify(newOriginArray));
+
+    targetState(newTargetArray);
+    localStorage.setItem(targetStorage, JSON.stringify(newTargetArray));
   };
 
   return (
@@ -68,100 +90,78 @@ function App() {
           name="new-todo"
           className="new-todo-input"
           placeholder="Enter a task..."
-          onChange={handleNewTodoChange}
+          onChange={handleNewTodoInputChange}
           onKeyUp={handleNewTodoEnter}
           value={textInput}
           autoFocus
         />
         <ReactSortable
-          list={todos}
-          setList={setTodos}
+          list={activeList}
+          setList={activeState}
           onEnd={() => {
-            localStorage.setItem("todos", JSON.stringify(todos));
+            localStorage.setItem(activeStorage, JSON.stringify(activeList));
           }}
           animation={0}
           className="todo-list"
           ghostClass="ghost"
         >
-          {!showCompleted
-            ? todos.map((todo) => (
-                <div key={todo.id} className="todo-list-item" focus="true">
-                  <span
-                    onClick={(e) => {
-                      handleCompletedTodo(e, todo);
-                    }}
-                    className="completed-btn"
-                  >
-                    ✓
-                  </span>
-                  <input
-                    type="text"
-                    defaultValue={todo.task}
-                    className="tasks"
-                    onKeyUp={(e) => {
-                      if (e.key === "Enter") {
-                        e.target.blur();
-                      }
-                    }}
-                    onBlur={(e) => {
-                      handleEditTodo(e, todo);
-                    }}
-                  />
-                  <span
-                    onClick={() => {
-                      handleDeleteTodo(todo.id);
-                    }}
-                    className="delete-btn"
-                  >
-                    &times;
-                  </span>
-                </div>
-              ))
-            : completedTodos.map((todo) => (
-                <div key={todo.id} className="todo-list-item" focus="true">
-                  <span
-                    onClick={(e) => {
-                      handleCompletedTodo(e, todo);
-                    }}
-                    className="completed-btn"
-                  >
-                    ✓
-                  </span>
-                  <input
-                    type="text"
-                    defaultValue={todo.task}
-                    className="tasks"
-                    onKeyUp={(e) => {
-                      if (e.key === "Enter") {
-                        e.target.blur();
-                      }
-                    }}
-                    onBlur={(e) => {
-                      handleEditTodo(e, todo);
-                    }}
-                  />
-                  <span
-                    onClick={() => {
-                      handleDeleteTodo(todo.id);
-                    }}
-                    className="delete-btn"
-                  >
-                    &times;
-                  </span>
-                </div>
-              ))}
+          {activeList.map((todo) => (
+            <div key={todo.id} className="todo-list-item" focus="true">
+              <span
+                onClick={() => {
+                  handleToggleTodo(todo);
+                }}
+                className={!showCompleted ? "complete-btn" : "restore-btn"}
+              >
+                {!showCompleted ? (
+                  <FontAwesomeIcon icon={faCheck} />
+                ) : (
+                  <FontAwesomeIcon icon={faArrowUp} />
+                )}
+              </span>
+              <input
+                type="text"
+                defaultValue={todo.task}
+                style={showCompleted ? { textDecoration: "line-through" } : {}}
+                className="tasks"
+                onKeyUp={(e) => {
+                  if (e.key === "Enter") {
+                    e.target.blur();
+                  }
+                }}
+                onBlur={(e) => {
+                  handleEditTodo(e, todo);
+                }}
+              />
+              <span
+                onClick={() => {
+                  handleDeleteTodo(todo.id);
+                }}
+                className="delete-btn"
+              >
+                <FontAwesomeIcon icon={faTrash} />
+              </span>
+            </div>
+          ))}
         </ReactSortable>
       </div>
       <div className="bottom-panel">
         <div className="stats">
           <span>
-            Todos: {!showCompleted ? todos.length : completedTodos.length}
+            Todos:
+            {" " + activeList.length}
           </span>
         </div>
         <button
+          className="show-completed-btn"
           onClick={() => {
             setShowCompleted(!showCompleted);
           }}
+          style={
+            showCompleted
+              ? { background: "rgb(53, 185, 97)" }
+              : { background: "rgb(255, 217, 0)" }
+          }
         >
           {showCompleted ? "Show Active" : "Show Completed"}
         </button>
@@ -169,7 +169,8 @@ function App() {
           className="clear-storage-btn"
           onClick={() => {
             localStorage.clear();
-            setTodos([]);
+            setActiveTodos([]);
+            setCompletedTodos([]);
           }}
         >
           Clear Storage
