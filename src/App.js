@@ -1,5 +1,6 @@
 import "./App.css";
 import { useState, useEffect } from "react";
+import firebase from "./Firebase";
 import uniqid from "uniqid";
 import { ReactSortable } from "react-sortablejs";
 import ForkMeOnGithub from "fork-me-on-github";
@@ -12,7 +13,7 @@ function App() {
   const [activeTodos, setActiveTodos] = useState([]);
   const [completedTodos, setCompletedTodos] = useState([]);
   const [showCompleted, setShowCompleted] = useState(false);
-
+  const [user, setUser] = useState(null);
   const activeList = !showCompleted ? activeTodos : completedTodos;
   const activeState = !showCompleted ? setActiveTodos : setCompletedTodos;
   const activeStorage = !showCompleted ? "activeTodos" : "completedTodos";
@@ -81,9 +82,54 @@ function App() {
     localStorage.setItem(targetStorage, JSON.stringify(newTargetArray));
   };
 
+  function saveToFirebaseFirestore(id, activeTodos, completedTodos) {
+    firebase.firestore().collection("users").doc(id).set({
+      activeTodos,
+      completedTodos,
+    });
+    console.log(id, activeTodos, completedTodos);
+  }
+
+  const loginWithGoogle = () => {
+    firebase
+      .auth()
+      .signInWithPopup(new firebase.auth.GoogleAuthProvider())
+      .then(() => {
+        setUser(firebase.auth().currentUser);
+        saveToFirebaseFirestore(
+          firebase.auth().currentUser.uid,
+          activeTodos,
+          completedTodos
+        );
+      })
+      .catch((error) => {
+        console.error("Google login failed: " + error);
+      });
+  };
+
+  firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+      setUser(user);
+    } else {
+      setUser(null);
+    }
+  });
+
   return (
     <div className="container">
       <div className="app">
+        {user === null ? (
+          <button onClick={loginWithGoogle}>Login with Google</button>
+        ) : (
+          <button
+            onClick={() => {
+              firebase.auth().signOut();
+            }}
+          >
+            Logout
+          </button>
+        )}
+
         <h1 className="app-title">Dan's Todo List App</h1>
         <input
           type="text"
@@ -150,6 +196,11 @@ function App() {
           <span>
             Todos:
             {" " + activeList.length}
+          </span>
+          <br />
+          <span>
+            Storage:
+            {user ? " Firebase" : " LocalStorage"}
           </span>
         </div>
         <button
