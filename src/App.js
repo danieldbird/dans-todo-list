@@ -1,65 +1,110 @@
-import "./App.css";
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { ReactSortable } from "react-sortablejs";
 import firebase from "./Firebase";
 import uniqid from "uniqid";
-import { ReactSortable } from "react-sortablejs";
 import ForkMeOnGithub from "fork-me-on-github";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faTrash, faArrowUp } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCheck,
+  faTrash,
+  faArrowUp,
+  faSignOutAlt,
+  faSignInAlt,
+} from "@fortawesome/free-solid-svg-icons";
+import "./App.css";
 
 function App() {
-  // set initial states
+  const [user, setUser] = useState(null);
   const [textInput, setTextInput] = useState("");
   const [activeTodos, setActiveTodos] = useState([]);
   const [completedTodos, setCompletedTodos] = useState([]);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [user, setUser] = useState(null);
-  const activeList = !showCompleted ? activeTodos : completedTodos;
-  const activeState = !showCompleted ? setActiveTodos : setCompletedTodos;
-  const activeStorage = !showCompleted ? "activeTodos" : "completedTodos";
+  const currentList = !showCompleted ? activeTodos : completedTodos;
+  const currentState = !showCompleted ? setActiveTodos : setCompletedTodos;
+  const currentStorage = !showCompleted ? "activeTodos" : "completedTodos";
 
-  // check if there are todos in localStorage
   useEffect(() => {
-    if (localStorage.getItem("activeTodos") !== null) {
-      setActiveTodos(JSON.parse(localStorage.getItem("activeTodos")));
-    }
-    if (localStorage.getItem("completedTodos") !== null) {
-      setCompletedTodos(JSON.parse(localStorage.getItem("completedTodos")));
-    }
+    const userChanged = firebase.auth().onAuthStateChanged((user) => {
+      setUser(user);
+    });
+    return () => userChanged();
   }, []);
 
-  // handle the text input changes
-  const handleNewTodoInputChange = (e) => {
+  useEffect(() => {
+    if (user) {
+      const unsubscribe = firebase
+        .firestore()
+        .collection("users")
+        .doc(user.uid)
+        .onSnapshot((snapshot) => {
+          setActiveTodos(snapshot.data().activeTodos);
+          setCompletedTodos(snapshot.data().completedTodos);
+        });
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  const login = () => {
+    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  };
+
+  const logout = () => {
+    firebase.auth().signOut();
+    resetAllState();
+  };
+
+  const resetAllState = () => {
+    setUser(null);
+    setActiveTodos([]);
+    setCompletedTodos([]);
+    setShowCompleted(false);
+  };
+
+  const inputChange = (e) => {
     setTextInput(e.target.value);
   };
 
-  const handleNewTodoEnter = (e) => {
+  const addTodo = (e) => {
     const id = uniqid();
     if (e.key === "Enter") {
-      activeState([...activeList, { id, task: textInput }]);
-      localStorage.setItem(
-        activeStorage,
-        JSON.stringify([...activeList, { id, task: textInput }])
-      );
+      currentState([...currentList, { id, task: textInput }]);
       setTextInput("");
+      firebase
+        .firestore()
+        .collection("users")
+        .doc(user.uid)
+        .update({
+          [currentStorage]: [...currentList, { id, task: textInput }],
+        });
     }
   };
 
-  const handleDeleteTodo = (id) => {
-    const newArray = activeList.filter((todo) => todo.id !== id);
-    activeState(newArray);
-    localStorage.setItem(activeStorage, JSON.stringify(newArray));
+  const deleteTodo = (id) => {
+    const newArray = currentList.filter((todo) => todo.id !== id);
+    currentState(newArray);
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(user.uid)
+      .update({
+        [currentStorage]: newArray,
+      });
   };
 
-  const handleEditTodo = (e, todo) => {
-    const newArray = activeList.map((x) =>
-      x.id === todo.id ? { ...x, task: e.target.value } : { ...x }
-    );
-    activeState(newArray);
-    localStorage.setItem(activeStorage, JSON.stringify(newArray));
+  const arrangeTodo = () => {
+    currentList.forEach((item) => {
+      delete item.chosen;
+    });
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(user.uid)
+      .update({
+        [currentStorage]: currentList,
+      });
   };
 
-  const handleToggleTodo = (todo) => {
+  const changeList = (todo) => {
     const originList = !showCompleted ? activeTodos : completedTodos;
     const targetList = !showCompleted ? completedTodos : activeTodos;
     const originState = !showCompleted ? setActiveTodos : setCompletedTodos;
@@ -74,164 +119,140 @@ function App() {
         task: todo.task,
       },
     ];
-
     originState(newOriginArray);
-    localStorage.setItem(originStorage, JSON.stringify(newOriginArray));
-
     targetState(newTargetArray);
-    localStorage.setItem(targetStorage, JSON.stringify(newTargetArray));
-  };
 
-  function saveToFirebaseFirestore(id, activeTodos, completedTodos) {
-    firebase.firestore().collection("users").doc(id).set({
-      activeTodos,
-      completedTodos,
-    });
-    console.log(id, activeTodos, completedTodos);
-  }
-
-  const loginWithGoogle = () => {
     firebase
-      .auth()
-      .signInWithPopup(new firebase.auth.GoogleAuthProvider())
-      .then(() => {
-        setUser(firebase.auth().currentUser);
-        saveToFirebaseFirestore(
-          firebase.auth().currentUser.uid,
-          activeTodos,
-          completedTodos
-        );
-      })
-      .catch((error) => {
-        console.error("Google login failed: " + error);
+      .firestore()
+      .collection("users")
+      .doc(user.uid)
+      .set({
+        [originStorage]: newOriginArray,
+        [targetStorage]: newTargetArray,
       });
   };
 
-  firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-      setUser(user);
-    } else {
-      setUser(null);
-    }
-  });
+  const editTodo = (e, todo) => {
+    const newArray = currentList.map((x) =>
+      x.id === todo.id
+        ? { id: x.id, task: e.target.innerText }
+        : { id: x.id, task: x.task }
+    );
+    currentState(newArray);
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(user.uid)
+      .update({
+        [currentStorage]: newArray,
+      });
+  };
 
   return (
     <div className="container">
-      <div className="app">
-        {user === null ? (
-          <button onClick={loginWithGoogle}>Login with Google</button>
-        ) : (
-          <button
-            onClick={() => {
-              firebase.auth().signOut();
-            }}
-          >
-            Logout
-          </button>
-        )}
-
-        <h1 className="app-title">Dan's Todo List App</h1>
-        <input
-          type="text"
-          name="new-todo"
-          className="new-todo-input"
-          placeholder="Enter a task..."
-          onChange={handleNewTodoInputChange}
-          onKeyUp={handleNewTodoEnter}
-          value={textInput}
-          autoFocus
-        />
-        <ReactSortable
-          list={activeList}
-          setList={activeState}
-          onEnd={() => {
-            localStorage.setItem(activeStorage, JSON.stringify(activeList));
-          }}
-          animation={0}
-          className="todo-list"
-          ghostClass="ghost"
-        >
-          {activeList.map((todo) => (
-            <div key={todo.id} className="todo-list-item" focus="true">
-              <span
-                onClick={() => {
-                  handleToggleTodo(todo);
-                }}
-                className={!showCompleted ? "complete-btn" : "restore-btn"}
-              >
-                {!showCompleted ? (
-                  <FontAwesomeIcon icon={faCheck} />
-                ) : (
-                  <FontAwesomeIcon icon={faArrowUp} />
-                )}
-              </span>
-              <input
-                type="text"
-                defaultValue={todo.task}
-                style={showCompleted ? { textDecoration: "line-through" } : {}}
-                className="tasks"
-                onKeyUp={(e) => {
-                  if (e.key === "Enter") {
-                    e.target.blur();
-                  }
-                }}
-                onBlur={(e) => {
-                  handleEditTodo(e, todo);
-                }}
-              />
-              <span
-                onClick={() => {
-                  handleDeleteTodo(todo.id);
-                }}
-                className="delete-btn"
-              >
-                <FontAwesomeIcon icon={faTrash} />
-              </span>
-            </div>
-          ))}
-        </ReactSortable>
-      </div>
-      <div className="bottom-panel">
-        <div className="stats">
-          <span>
-            Todos:
-            {" " + activeList.length}
-          </span>
-          <br />
-          <span>
-            Storage:
-            {user ? " Firebase" : " LocalStorage"}
-          </span>
-        </div>
-        <button
-          className="show-completed-btn"
-          onClick={() => {
-            setShowCompleted(!showCompleted);
-          }}
-          style={
-            showCompleted
-              ? { background: "rgb(53, 185, 97)" }
-              : { background: "rgb(255, 217, 0)" }
-          }
-        >
-          {showCompleted ? "Show Active" : "Show Completed"}
-        </button>
-        <button
-          className="clear-storage-btn"
-          onClick={() => {
-            localStorage.clear();
-            setActiveTodos([]);
-            setCompletedTodos([]);
-          }}
-        >
-          Clear Storage
-        </button>
-      </div>
       <ForkMeOnGithub
         repo="https://github.com/danieldbird/dans-todo-list.git"
         text="View source on GitHub"
         colorBackground="#705194"
+        side="left"
       />
+      <div className="top">
+        <header className="header">
+          {user ? (
+            <>
+              <button className="logout-btn" onClick={logout}>
+                Logout <FontAwesomeIcon icon={faSignOutAlt} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="login-btn" onClick={login}>
+                Login <FontAwesomeIcon icon={faSignInAlt} />
+              </button>
+            </>
+          )}
+        </header>
+        <h1>Dan's Todo List App</h1>
+        {user ? (
+          <>
+            <input
+              type="text"
+              name="new-todo"
+              className="new-todo-input"
+              placeholder="Enter a task..."
+              onChange={inputChange}
+              onKeyUp={addTodo}
+              value={textInput}
+              autoFocus
+            />
+            <ReactSortable
+              list={currentList}
+              setList={currentState}
+              onEnd={arrangeTodo}
+              className="todo-list"
+            >
+              {currentList.map((todo) => (
+                <div className="todo-item-wrapper" key={todo.id}>
+                  <button
+                    className="todo-toggle-btn"
+                    onClick={() => {
+                      changeList(todo);
+                    }}
+                    onTouchStart={() => {
+                      changeList(todo);
+                    }}
+                  >
+                    {showCompleted ? (
+                      <FontAwesomeIcon icon={faArrowUp} />
+                    ) : (
+                      <FontAwesomeIcon icon={faCheck} />
+                    )}
+                  </button>
+                  <span
+                    className="todo-item"
+                    contentEditable={true}
+                    suppressContentEditableWarning={true}
+                    style={
+                      showCompleted ? { textDecoration: "line-through" } : {}
+                    }
+                    onBlur={(e) => {
+                      editTodo(e, todo);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.target.blur();
+                      }
+                    }}
+                  >
+                    {todo.task}
+                  </span>
+                  <button
+                    className="todo-delete-btn"
+                    onClick={() => {
+                      deleteTodo(todo.id);
+                    }}
+                    onTouchStart={() => {
+                      deleteTodo(todo.id);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                </div>
+              ))}
+            </ReactSortable>
+          </>
+        ) : null}
+      </div>
+      <div className="bottom">
+        <span className="todo-count">Todos: {currentList.length}</span>
+        <button
+          className="show-completed-toggle-btn"
+          onClick={() => setShowCompleted(!showCompleted)}
+        >
+          {showCompleted ? "Show Active" : "Show Completed"}
+        </button>
+      </div>
     </div>
   );
 }
