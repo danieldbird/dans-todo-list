@@ -7,9 +7,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheck,
   faTrash,
-  faArrowUp,
   faSignOutAlt,
   faSignInAlt,
+  faGripLines,
+  faArrowLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import "./App.css";
 
@@ -61,7 +62,11 @@ function App() {
   };
 
   const inputChange = (e) => {
-    setTextInput(e.target.value);
+    if (e.target.value.length > 30) {
+      e.preventDefault();
+    } else {
+      setTextInput(e.target.value);
+    }
   };
 
   const addTodo = (e) => {
@@ -172,7 +177,7 @@ function App() {
             </>
           )}
         </header>
-        <h1>Dan's Todo List App</h1>
+        <h1 className="app-title">Dan's Todo List App</h1>
         {user ? (
           <>
             <input
@@ -190,6 +195,8 @@ function App() {
               setList={currentState}
               onEnd={arrangeTodo}
               className="todo-list"
+              ghostClass="sortable-ghost"
+              animation={500}
             >
               {currentList.map((todo) => (
                 <div className="todo-item-wrapper" key={todo.id}>
@@ -198,12 +205,9 @@ function App() {
                     onClick={() => {
                       changeList(todo);
                     }}
-                    onTouchStart={() => {
-                      changeList(todo);
-                    }}
                   >
                     {showCompleted ? (
-                      <FontAwesomeIcon icon={faArrowUp} />
+                      <FontAwesomeIcon icon={faArrowLeft} />
                     ) : (
                       <FontAwesomeIcon icon={faCheck} />
                     )}
@@ -223,36 +227,51 @@ function App() {
                         e.preventDefault();
                         e.target.blur();
                       }
+                      if (
+                        e.target.innerHTML.length > 30 &&
+                        e.key !== "Backspace" &&
+                        e.key !== "Delete" &&
+                        e.key !== "ArrowLeft" &&
+                        e.key !== "ArrowRight"
+                      ) {
+                        console.log(e);
+                        e.preventDefault();
+                      }
                     }}
                   >
                     {todo.task}
                   </span>
-                  <button
-                    className="todo-delete-btn"
-                    onClick={() => {
-                      deleteTodo(todo.id);
-                    }}
-                    onTouchStart={() => {
-                      deleteTodo(todo.id);
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
+                  {showCompleted ? (
+                    <button
+                      className="todo-delete-btn"
+                      onClick={() => {
+                        deleteTodo(todo.id);
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  ) : (
+                    <button className="todo-grip-btn">
+                      <FontAwesomeIcon icon={faGripLines} />
+                    </button>
+                  )}
                 </div>
               ))}
             </ReactSortable>
           </>
         ) : null}
       </div>
-      <div className="bottom">
-        <span className="todo-count">Todos: {currentList.length}</span>
-        <button
-          className="show-completed-toggle-btn"
-          onClick={() => setShowCompleted(!showCompleted)}
-        >
-          {showCompleted ? "Show Active" : "Show Completed"}
-        </button>
-      </div>
+      {user ? (
+        <div className="bottom">
+          <span className="todo-count">Todos: {currentList.length}</span>
+          <button
+            className="show-completed-toggle-btn"
+            onClick={() => setShowCompleted(!showCompleted)}
+          >
+            {showCompleted ? "Show Active" : "Show Completed"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
